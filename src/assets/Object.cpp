@@ -1,4 +1,15 @@
 #include "Object.h"
+#include "GameState.h"
+#include <typeinfo>
+#include <chrono>
+
+unsigned int Object::GenerateID(){
+    if(GetState()->objects.size() > 0){
+        return GetState()->objects.back()->id + 1;
+    }
+    else
+        return 1;
+}
 
 Object::Object(){
     //fill in properties
@@ -8,16 +19,10 @@ Object::Object(){
     renderData = {-0.5f,-0.5f, 0.0f,
             0.5f,-0.5f, 0.0f,
             0.0f, 0.5f, 0.0f};
-    // shader = Shader("../shaders/default.vert", "../shaders/default.frag");
-}
-Object::~Object(){}
 
-void Object::Display(){
-    // vbo = VBO(sizeof(renderData.data()), renderData);
-    // glUseProgram(shader.id);
-    // glBindVertexArray(vao.GetID());
-    // glDrawArrays(GL_TRIANGLES, 0, 3);
 }
+
+Object::~Object(){}
 
 void Object::Start(){
 
@@ -35,7 +40,12 @@ std::string Object::PosXYZ(){
     return val;
 }
 
-Object* Object::Instantiate(){
-    std::cerr << "Can't instantiate abstract Object" << std::endl;
-    return nullptr;
+Object* Object::Instantiate(Object* obj){
+    Object* temp = obj->CreateNew();
+    temp->id = obj->id;
+    temp->renderData = obj->renderData;
+    temp->vertShaderPath = obj->vertShaderPath;
+    temp->fragShaderPath = obj->fragShaderPath;
+    GetState()->objects.push_back(temp);
+    return temp;
 }

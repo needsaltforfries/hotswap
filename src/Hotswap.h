@@ -8,7 +8,7 @@
 #include <thread>
 #include <mutex>
 #include <atomic>
-#include "assets/Game.h"
+#include "assets/GameState.h"
 
 typedef void *(*funcPtr) (void *);
 

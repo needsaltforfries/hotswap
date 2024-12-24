@@ -1,6 +1,6 @@
 FLAGS = -Wall -shared -fPIC
 TIMESTAMP := $(shell powershell -Command "[System.DateTime]::Now.ToString('yyyyMMddHHmmss')")
-SRC = $(wildcard ./src/*.cpp) ./src/glad.c main.cpp
+SRC = $(wildcard ./src/*.cpp) $(wildcard ./src/visualizer/*.cpp) ./src/glad.c main.cpp
 LIBSRC = $(wildcard ./src/assets/*.cpp)
 LIBS = -lglfw3 -lglfw3dll -lgdi32
 INCLUDE_PATH = ./include/

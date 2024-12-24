@@ -1,4 +1,5 @@
 #include "Hotswap.h"
+#include "assets/GameHeader.h"
 
 Hotswap::Hotswap(){
     finishPoll = false;
@@ -12,10 +13,10 @@ Hotswap::~Hotswap(){
 void Hotswap::pollThread(){
     //poll reload
     while(!finishPoll){
+        std::this_thread::sleep_for(std::chrono::seconds(3));
         std::cout << "\tAttempting reload...\n";
         Reload();
         // std::cout << "\tReload finished!" << std::endl;
-        std::this_thread::sleep_for(std::chrono::seconds(2));
     }
 }
 
@@ -70,22 +71,42 @@ void Hotswap::Reload(){
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
         //prepare to copy state
-        FARPROC get_state = GetProcAddress(this->library, "GetState");
-        GameState* prevState = (GameState*)((*(funcPtr)get_state)(nullptr));
-        std::cout << "got state at " << prevState << std::endl;
-        std::vector<Object*> objCopy = prevState->objects;
-        //free memory
-        free(prevState);
-        FreeLibrary(this->library);
+        funcPtr get_state = (funcPtr)func("GetState");
+        funcPtr blank_obj = (funcPtr)func("BlankObj");
+        GameState* prevState = (GameState*)((*get_state)(nullptr));
+        std::cout << "copying objects...\n";
+        // funcPtr2 CopyObject = (funcPtr2)func("CopyObject");
+        
+        std::vector<Object*> objCopy(prevState->objects.size());
+        std::vector<Object*>* prevObj = &prevState->objects;
+        for(size_t i = 0; i < prevObj->size(); ++i){
+            objCopy[i] = (Object*)blank_obj(prevObj->at(i));
+            objCopy[i]->id = prevObj->at(i)->id;
+            objCopy[i]->renderData = prevObj->at(i)->renderData;
+            objCopy[i]->vertShaderPath = prevObj->at(i)->vertShaderPath;
+            objCopy[i]->fragShaderPath = prevObj->at(i)->fragShaderPath;
+            free(prevState->objects[i]);
+            std::cout << "Copying " << objCopy[i]->id << "...\n";
+        }
+        std::cout << "objects copied\n";
+        std::map<unsigned int, void*>* mapCopy = prevState->obj_vis_map;
+        *mapCopy = *prevState->obj_vis_map;
+        //free lib
+        FreeLibrary(library);
         Load();
         //copy state over to new state
-        FARPROC set_state = GetProcAddress(this->library, "SetState");
-        GameState* newState = (GameState*)malloc(1024);
-        newState->objects = objCopy;
-        void* result = (*(funcPtr)set_state)(newState);
-        std::cout << "attempted to call " << result << std::endl;
+        GameState* newState = (GameState*)((*get_state)(nullptr));
+        std::cout << "newState: " << &newState->objects << " " << &newState->obj_vis_map << "\n";
+        for(size_t i = 0; i < objCopy.size(); ++i){
+            *newState->objects[i] = *objCopy[i];
+            std::cout << "Transferring " << newState->objects[i]->id << "...\n";
+            free(objCopy[i]);
+        }
+        *newState->obj_vis_map = *mapCopy;
+        std::cout << "objects transfered\n";
         LWT = CWT;
         isReloading = false;
+        std::cout << "Hotswap finished." << std::endl;
     }
 }
 
