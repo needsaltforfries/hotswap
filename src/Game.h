@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../../include/GLFW/glfw3.h"
+#include <GLFW/glfw3.h>
 
 typedef int *(*funcPtr2) (void*, void*);
 typedef int (*GetKeyFunc) (GLFWwindow*, int);

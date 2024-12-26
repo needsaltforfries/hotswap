@@ -6,27 +6,29 @@
 #include <Windows.h>
 #include <vector>
 #include <memory>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
-#define EXPORT_CLASS class __declspec(dllexport) 
+#define OBJ_CLASS class __declspec(dllexport) 
 
-EXPORT_CLASS Object{
+OBJ_CLASS Object{
     public:
         Object();
-        Object(Object* other);
         virtual ~Object();
-        virtual void Start() = 0;
-        virtual void Update() = 0;
+        virtual void Start();
+        virtual void Update();
         static Object* Instantiate(Object* obj);
-        std::string PosXYZ();
         std::vector<float> renderData;
         std::string fragShaderPath = "shaders/default.frag";
         std::string vertShaderPath = "shaders/default.vert";
         unsigned int id = GenerateID();
-        virtual Object* CreateNew() = 0;
-    protected:
-        float transform[3];
+        glm::vec3 position;
+    private:
         unsigned int GenerateID();
-        // VAO vao;
-        // VBO vbo;
-        // Shader shader;
 };
+
+extern "C"{
+    __declspec(dllexport) Object* NewObject();
+    __declspec(dllexport) Object* InstantiateObject(Object* data);
+}

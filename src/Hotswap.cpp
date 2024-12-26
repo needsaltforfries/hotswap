@@ -1,5 +1,4 @@
 #include "Hotswap.h"
-#include "assets/GameHeader.h"
 
 Hotswap::Hotswap(){
     finishPoll = false;
@@ -16,7 +15,6 @@ void Hotswap::pollThread(){
         std::this_thread::sleep_for(std::chrono::seconds(3));
         std::cout << "\tAttempting reload...\n";
         Reload();
-        // std::cout << "\tReload finished!" << std::endl;
     }
 }
 
@@ -68,56 +66,33 @@ void Hotswap::Reload(){
         isReloading = true;
         std::cout << "waiting to reload lib." << std::endl;
         while(delayReloadFlag){
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
         }
-        //prepare to copy state
-        funcPtr get_state = (funcPtr)func("GetState");
-        funcPtr blank_obj = (funcPtr)func("BlankObj");
-        GameState* prevState = (GameState*)((*get_state)(nullptr));
-        std::cout << "copying objects...\n";
-        // funcPtr2 CopyObject = (funcPtr2)func("CopyObject");
         
-        std::vector<Object*> objCopy(prevState->objects.size());
-        std::vector<Object*>* prevObj = &prevState->objects;
-        for(size_t i = 0; i < prevObj->size(); ++i){
-            objCopy[i] = (Object*)blank_obj(prevObj->at(i));
-            objCopy[i]->id = prevObj->at(i)->id;
-            objCopy[i]->renderData = prevObj->at(i)->renderData;
-            objCopy[i]->vertShaderPath = prevObj->at(i)->vertShaderPath;
-            objCopy[i]->fragShaderPath = prevObj->at(i)->fragShaderPath;
-            free(prevState->objects[i]);
-            std::cout << "Copying " << objCopy[i]->id << "...\n";
-        }
-        std::cout << "objects copied\n";
-        std::map<unsigned int, void*>* mapCopy = prevState->obj_vis_map;
-        *mapCopy = *prevState->obj_vis_map;
+        funcPtr get_state = (funcPtr)func("GetGameState");
+        void* state = (*get_state)(nullptr);
+
+        funcPtr get_lib = (funcPtr)func("GetObjectLib");
+        void* obj_lib = (*get_lib)(nullptr);
+
         //free lib
         FreeLibrary(library);
-        Load();
-        //copy state over to new state
-        GameState* newState = (GameState*)((*get_state)(nullptr));
-        std::cout << "newState: " << &newState->objects << " " << &newState->obj_vis_map << "\n";
-        for(size_t i = 0; i < objCopy.size(); ++i){
-            *newState->objects[i] = *objCopy[i];
-            std::cout << "Transferring " << newState->objects[i]->id << "...\n";
-            free(objCopy[i]);
-        }
-        *newState->obj_vis_map = *mapCopy;
-        std::cout << "objects transfered\n";
+        Load(); 
+
+        //re-init lib
+        void* params[] = {state, obj_lib};
+        (*(funcPtr)func("Init"))(params);
+
         LWT = CWT;
         isReloading = false;
         std::cout << "Hotswap finished." << std::endl;
     }
 }
 
-void* Hotswap::LoadDLLFunc(std::string funcName){
+void* Hotswap::func(std::string funcName){
     FARPROC proc = GetProcAddress(this->library, funcName.c_str());
     assert(proc != NULL);
     return (void*)proc;
-}
-
-void* Hotswap::func(std::string funcName){
-    return LoadDLLFunc(funcName);
 }
 
 bool Hotswap::reloadStatus(){

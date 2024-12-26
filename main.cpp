@@ -9,9 +9,9 @@
 #include <vector>
 #include <map>
 #include "src/Hotswap.h"
-#include "src/assets/GameState.h"
-#include "src/assets/GameHeader.h"
-#include "src/assets/Object.h"
+#include "src/GameHeader.h"
+#include "src/assets/objects/Object.h"
+#include "src/assets/objects/GameState.h"
 #include "src/visualizer/ObjectVisual.h"
 
 const unsigned int WIDTH = 800;
@@ -24,28 +24,39 @@ void DisplayObjects(bool objChanged);
 
 std::map<unsigned int, ObjectVisual*> obj_vis_map;
 Hotswap hs;
-GameState state;
+GameState state; // state copy to sync with object lib
 std::vector<Object*> objectCopy;
+HMODULE objectslib;
+
+//delete this later
+void* stateAddr;
+void* newStateAddr;
+
 int main(){
     //setup opengl
     GLFWwindow* win = InitOpenGL(); 
     if(win == nullptr){
         return -1;
     }
-    
+    objectslib = LoadLibraryA("objectslib.dll");
     //init necessary functions
     hs.Init();
-    void* game_params[] = {&state, &obj_vis_map};
-    (*(funcPtr)hs.func("Init"))(game_params);
-    GameState* newState = (GameState*)(*(funcPtr)hs.func("GetState"))(nullptr);
+    funcPtr get_state = (funcPtr)GetProcAddress(objectslib, "GetState");
+    GameState* newState = (GameState*)(*(funcPtr)get_state)(nullptr);
+    stateAddr = newState;
+    newStateAddr = newState;
     state.objects = newState->objects;
+    void* game_params[] = {newState, &objectslib};
+    (*(funcPtr)hs.func("Init"))(game_params);
+    std::cout << "Initialized libraries.\n";
 
     //run start functions for all objects
     (*(funcPtr)hs.func("Start"))(nullptr);
-
+    
     //main loop
     double prevTime = glfwGetTime();
     double dT = 0.0;
+    
     while(!glfwWindowShouldClose(win)){
         //update time
         double curTime = glfwGetTime();
@@ -55,15 +66,18 @@ int main(){
 
         //don't update screen if reloading lib
         if(hs.reloadStatus() == true){
-            std::this_thread::sleep_for(std::chrono::seconds(1));
+            std::this_thread::sleep_for(std::chrono::seconds(3));
+            std::cout << "Waiting on reload to finish.\n";
+            newStateAddr = (GameState*)(*(funcPtr)hs.func("GetGameState"))(nullptr);
+            std::cout << "New addr @ " << newStateAddr << "\n";
             continue;
         }
         hs.delayReloadFlag = true;
-
+        assert(stateAddr == newStateAddr);
         //update game
         ProcessInput(win);
         (*(funcPtr)hs.func("GameUpdate"))(nullptr);
-        GameState* newState = (GameState*)(*(funcPtr)hs.func("GetState"))(nullptr);
+        GameState* newState = (GameState*)((*get_state)(nullptr));
         state = *newState;
         bool objChanged = (objectCopy != newState->objects);
         objectCopy = newState->objects;
@@ -78,9 +92,15 @@ int main(){
         glfwPollEvents();
         hs.delayReloadFlag = false;
     }
+
     glfwTerminate();
-    (*(funcPtr)hs.func("DestroyAllObjects"))(nullptr);
     hs.Terminate();
+    funcPtr obj_terminate = (funcPtr)GetProcAddress(objectslib, "DestroyAllObjects");
+    (*obj_terminate)(nullptr);
+    for(auto i = obj_vis_map.begin(); i != obj_vis_map.end(); ++i){
+        delete i->second;
+    }
+    FreeLibrary(objectslib);
     return 0;
 }
 

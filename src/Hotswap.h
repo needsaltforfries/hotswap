@@ -8,7 +8,6 @@
 #include <thread>
 #include <mutex>
 #include <atomic>
-#include "assets/GameState.h"
 
 typedef void *(*funcPtr) (void *);
 
@@ -35,6 +34,5 @@ class Hotswap{
         std::atomic_bool finishPoll;
         std::atomic_bool isReloading;
         std::mutex mtx;
-        void* LoadDLLFunc(std::string funcName);
         void pollThread();
 };

@@ -1,6 +1,5 @@
 #pragma once
 
-#include "../assets/Object.h"
 #include "VAO.h"
 #include "VBO.h"
 #include "Shader.h"

@@ -2,7 +2,6 @@
 
 #include <vector>
 #include <map>
-#include "ObjectInterface.h"
 #include "Object.h"
 
 #define EXPORT_FUNC __declspec(dllexport) 
